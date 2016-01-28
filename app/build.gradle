@@ -1,0 +1,119 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 23
+    buildToolsVersion "23.0.2"
+
+    defaultConfig {
+        applicationId "com.jjhangu.autogenerateproperties"
+        minSdkVersion 18
+        targetSdkVersion 23
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    testCompile 'junit:junit:4.12'
+    compile 'com.android.support:appcompat-v7:23.1.1'
+    compile 'com.android.support:design:23.1.1'
+}
+
+/**
+ *
+ * from here we use autogeneratro tasks
+ *
+ *
+ */
+
+import groovy.io.FileType
+def resourcePath = "dev"
+def packageName = "com.jjhangu.autogenerateproperties.agconstant"
+def className = "AgConstant"
+task copyPropertie << {
+    copy{
+        println '################################################'
+        println '############ ' + resourcePath + ' #######################'
+        println '################################################'
+
+        delete fileTree(dir: 'src/main/assets/properties' , include: '_*')
+
+        from  'src/main/assets/properties/' + resourcePath
+        into 'src/main/assets/properties'
+
+
+        def f = new File("src/main/assets/properties/_" + resourcePath)
+        def writer = new PrintWriter(f);
+        writer.println(resourcePath);
+        writer.close();
+
+        println resourcePath
+    }
+}
+task localCopy << {
+}
+task devCopy << {
+    println 'this is Dev dev dev dev ~~~~~~~~~~~'
+}
+task releaseCopy << {
+    println '***********************************************'
+    println '  this is for Release , you should be careful~  '
+    println '***********************************************'
+}
+
+task generator << {
+    def dir = new File("src/main/assets/properties")
+    File folder = new File("src/main/java/" + packageName.replace(".", File.separator));
+    folder.mkdirs();
+    File agFile = new File(folder, className +".java");
+    agFile.delete();
+    StringBuffer result = new StringBuffer();
+    result.append("package " + packageName +";");
+    result.append("\n").append("\n");
+    result.append("public class " +  className + " {\n")
+
+    dir.eachFile (FileType.FILES) { file ->
+        if(file.name.endsWith(".properties")){
+            result.append("/** "+file.name+" **/\n");
+
+            Properties props = new Properties()
+            props.load( new FileInputStream(file));
+
+            props.keySet().iterator().each { String key ->
+                println(key)
+                String line = "public static String " + key.replace(".", "_").toUpperCase() +" = " + '"' + props.get(key) +'";' ;
+                result.append(line);
+                result.append("\n");
+            }
+            result.append("\n");
+        }
+    }
+    result.append("}")
+    agFile.write(result.toString());
+    print('java Constants make Success');
+}
+releaseCopy.dependsOn copyPropertie
+devCopy.dependsOn copyPropertie
+localCopy.dependsOn copyPropertie
+copyPropertie.finalizedBy generator
+
+gradle.taskGraph.whenReady { graph ->
+    if (graph.hasTask(copyPropertie)) {
+        // do conditional configuration
+        if(graph.hasTask(localCopy)){
+            resourcePath = "local"
+        }else if(graph.hasTask(devCopy)){
+            resourcePath = "dev"
+        }else if(graph.hasTask(releaseCopy)){
+            resourcePath = "release"
+        }
+    }
+}
+
