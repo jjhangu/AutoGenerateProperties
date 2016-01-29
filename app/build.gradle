@@ -67,6 +67,18 @@ task releaseCopy << {
     println '  this is for Release , you should be careful~  '
     println '***********************************************'
 }
+gradle.taskGraph.whenReady { graph ->
+    if (graph.hasTask(copyPropertie)) {
+        // do conditional configuration
+        if(graph.hasTask(localCopy)){
+            resourcePath = "local"
+        }else if(graph.hasTask(devCopy)){
+            resourcePath = "dev"
+        }else if(graph.hasTask(releaseCopy)){
+            resourcePath = "release"
+        }
+    }
+}
 
 task generator << {
     def dir = new File("src/main/assets/properties")
@@ -88,7 +100,7 @@ task generator << {
 
             props.keySet().iterator().each { String key ->
                 println(key)
-                String line = "public static String " + key.replace(".", "_").toUpperCase() +" = " + '"' + props.get(key) +'";' ;
+                String line = "public static final String " + key.replace(".", "_").toUpperCase() +" = " + '"' + props.get(key) +'";' ;
                 result.append(line);
                 result.append("\n");
             }
@@ -104,16 +116,5 @@ devCopy.dependsOn copyPropertie
 localCopy.dependsOn copyPropertie
 copyPropertie.finalizedBy generator
 
-gradle.taskGraph.whenReady { graph ->
-    if (graph.hasTask(copyPropertie)) {
-        // do conditional configuration
-        if(graph.hasTask(localCopy)){
-            resourcePath = "local"
-        }else if(graph.hasTask(devCopy)){
-            resourcePath = "dev"
-        }else if(graph.hasTask(releaseCopy)){
-            resourcePath = "release"
-        }
-    }
-}
+
 
